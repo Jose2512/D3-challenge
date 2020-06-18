@@ -21,12 +21,20 @@ var svg = d3
 var chartGroup = svg.append("g")
 .attr("transform", `translate(${margin.left}, ${margin.top})`);
 
-///////////////////////////////////////////////////////////////////////////////////////
-
 var chosenXAxis = "poverty";
 var chosenYAxis = "obesity";
 
-///////////////////////////////////////////////////////////////////////////////////////
+function toogleLables(activeLabel, inactive1, inactive2){
+  activeLabel
+      .classed("inactive",false)
+      .classed("active", true)
+  inactive1
+      .classed("inactive",true)
+      .classed("active", false)
+  inactive2
+      .classed("inactive",true)
+      .classed("active", false)
+}
 
 function xScale(data, chosenXAxis) {
   // create scales
@@ -49,11 +57,8 @@ function yScale(data, chosenYAxis) {
   return yLinearScale;
 }
 
-///////////////////////////////////////////////////////////////////////////////////////
-
 function renderAxes(newXScale, xAxis) {
   var bottomAxis = d3.axisBottom(newXScale);
-
   xAxis.transition()
     .duration(1000)
     .call(bottomAxis);
@@ -69,35 +74,21 @@ function renderyAxes(newYScale, yAxis) {
   return yAxis;
 }
 
-function renderXCircles(circlesGroup, newXScale, chosenXAxis) {
+function renderCircles(circlesGroup, newXScale, chosenXAxis, newYScale, chosenYAxis) {
   circlesGroup.transition()
     .duration(1000)
-    .attr("cx", d => newXScale(d[chosenXAxis]));
-  return circlesGroup;
-}
-
-function renderXlables(stateLabelsGroup, newXScale, chosenXAxis) {
-  stateLabelsGroup.transition()
-    .duration(1000)
-    .attr("dx", d => newXScale(d[chosenXAxis]));
-  return stateLabelsGroup;
-}
-
-function renderYCircles(circlesGroup, newYScale, chosenYAxis) {
-  circlesGroup.transition()
-    .duration(1000)
+    .attr("cx", d => newXScale(d[chosenXAxis]))
     .attr("cy", d => newYScale(d[chosenYAxis]));
   return circlesGroup;
 }
 
-function renderYlables(stateLabelsGroup, newYScale, chosenYAxis) {
+function renderlables(stateLabelsGroup, newXScale, chosenXAxis, newYScale, chosenYAxis) {
   stateLabelsGroup.transition()
     .duration(1000)
+    .attr("dx", d => newXScale(d[chosenXAxis]))
     .attr("dy", d => newYScale(d[chosenYAxis]));
   return stateLabelsGroup;
 }
-
-///////////////////////////////////////////////////////////////////////////////////////
 
 function updateToolTip(chosenXAxis, circlesGroup) {
 
@@ -129,12 +120,8 @@ function updateToolTip(chosenXAxis, circlesGroup) {
 
   return circlesGroup;
 }
-/////////////////////NOOOOOO///////////////
-///////////////////////////////////////////////////////////////////////////////////////
 
 d3.csv("./assets/data/data.csv").then(function(censusData) {
-  // Step 1: Parse Data/Cast as numbers
-  // ==============================
   censusData.forEach (function(data){
     data.poverty = +data.poverty;
     data.healthcare = +data.healthcare;
@@ -143,73 +130,57 @@ d3.csv("./assets/data/data.csv").then(function(censusData) {
     data.age = +data.age;
     data.smokes = +data.smokes;
   });
-  // Step 2: Create scale functions
-  // ==============================
+
   var xLinearScale = xScale(censusData, chosenXAxis);
   var yLinearScale = yScale(censusData, chosenYAxis);
-  // Step 3: Create axis functions
-  // ==============================
   var bottomAxis = d3.axisBottom(xLinearScale);
   var leftAxis = d3.axisLeft(yLinearScale);
-  // Step 4: Append Axes to the chart
-  // ==============================
+
+  var circlesGroup = chartGroup.selectAll("circle")
+    .data(censusData)
+    .enter()
+    .append("circle")
+    .attr("cx", d => xLinearScale(d[chosenXAxis]))
+    .attr("cy", d => yLinearScale(d[chosenYAxis]))
+    .attr("r", "10")
+    .attr("class", "stateCircle")
+  
+  var stateLabelsGroup = chartGroup.selectAll("text")
+    .data(censusData)
+    .enter()
+    .append("text")
+    .text(d=>d.abbr)
+    .attr("dx", d => xLinearScale(d[chosenXAxis]))
+    .attr("dy", d => yLinearScale(d[chosenYAxis]))
+    .attr("class", "stateText")
+    .attr("alignment-baseline", "central")
+
   var xAxis = chartGroup.append("g")
     .attr("transform", `translate(0, ${height})`)
     .call(bottomAxis);
-
+    
   var yAxis = chartGroup.append("g")
     .call(leftAxis);
-  // Step 5: Create Circles
-  // ==============================
-  var circlesGroup = chartGroup.selectAll("circle")
-        .data(censusData)
-        .enter()
-        .append("circle")
-        .attr("cx", d => xLinearScale(d[chosenXAxis]))
-        .attr("cy", d => yLinearScale(d[chosenYAxis]))
-        .attr("r", "15")
-        .attr("class", "stateCircle")
-  
-  var stateLabelsGroup = chartGroup.selectAll("text")
-        .data(censusData)
-        .enter()
-        .append("text")
-        .text(d=>d.abbr)
-        .attr("dx", d => xLinearScale(d[chosenXAxis]))
-        .attr("dy", d => yLinearScale(d[chosenYAxis]))
-        .attr("class", "stateText")
-        .attr("alignment-baseline", "central")
 
+  var toolTip = d3.select("body")
+    .append("div")
+    .classed("d3-tip", true);
 
+  var xLabel = "poverty"
+  var yLabel = "Obesity"
+  var xLabelUnit = "%"
+  var yLabelUnit = "%"
 
-
-
-    // Step 6: Initialize tool tip
-    // ==============================
-    var toolTip = d3.select("body")
-      .append("div")
-      .classed("d3-tip", true);
-    // Step 7: Create tooltip in the chart
-    // ==============================
-    var xLabel = "poverty"
-    var yLabel = "Obesity"
-    var xLabelUnit = "%"
-    var yLabelUnit = "%"
-
-    // Step 8: Create event listeners to display and hide the tooltip
-    // ==============================
-    circlesGroup.on("mouseover", function (d,i) {
-      toolTip
-        .style("display", "block")
-        .html(`<h5>State: <br> ${d.state}</h5><hr> <h5><strong>${xLabel}</strong>: ${d[chosenXAxis]} ${xLabelUnit}</h5> <br> <h5>${yLabel}: ${d[chosenYAxis]} ${yLabelUnit}</h5>`)
-        .style("left", d3.event.pageX + "px")
-        .style("top", d3.event.pageY+ "px");
+  stateLabelsGroup.on("mouseover", function (d) {
+    toolTip
+      .style("display", "block")
+      .html(`<h5>${d.state}</h5> <strong>${xLabel}</strong>: ${d[chosenXAxis]}${xLabelUnit} <br> <strong>${yLabel}</strong>: ${d[chosenYAxis]}${yLabelUnit}`)
+      .style("left", d3.event.pageX + "px")
+      .style("top", d3.event.pageY+ "px");
     })
-    // Step 3: Create "mouseout" event listener to hide tooltip
-      .on("mouseout", function(){
+    .on("mouseout", function(){
       toolTip.style("display", "none");
     });
-    // Create axes labels
     
   var YlabelsGroup = chartGroup.append("g")
 
@@ -219,7 +190,7 @@ d3.csv("./assets/data/data.csv").then(function(censusData) {
     .attr("x", 0 - (height / 2))
     .attr("dy", "1em")
     .attr("class", "active")
-    .text("Obese")
+    .text("Obese (%)")
     .attr("value", "obesity");
 
   var smokesLabel = YlabelsGroup.append("text")
@@ -228,7 +199,7 @@ d3.csv("./assets/data/data.csv").then(function(censusData) {
     .attr("x", 0 - (height / 2))
     .attr("dy", "1em")
     .attr("class", "inactive")
-    .text("Smokes")
+    .text("Smokes (%)")
     .attr("value", "smokes");
 
   var healthLabel = YlabelsGroup.append("text")
@@ -237,31 +208,30 @@ d3.csv("./assets/data/data.csv").then(function(censusData) {
     .attr("x", 0 - (height / 2))
     .attr("dy", "1em")
     .attr("class", "inactive")
-    .text("HealthCare")
+    .text("Lacks HealthCare(%)")
     .attr("value", "healthcare");;
 
   var XlabelsGroup = chartGroup.append("g")
   var povertyLabel = XlabelsGroup.append("text")
     .attr("transform", `translate(${width / 2}, ${height + margin.top + 20})`)
     .attr("class", "active")
-    .text("Poverty")
+    .text("In Poverty (%)")
     .attr("value", "poverty");;
 
   var ageLabel = XlabelsGroup.append("text")
     .attr("transform", `translate(${width / 2}, ${height + margin.top + 40})`)
     .attr("class", "inactive")
-    .text("Age")
+    .text("Age (Median)")
     .attr("value", "age");;
 
   var incomeLabel = XlabelsGroup.append("text")
     .attr("transform", `translate(${width / 2}, ${height + margin.top + 60})`)
     .attr("class", "inactive")
-    .text("Income")
+    .text("Household Income (Median)")
     .attr("value", "income");
 
   XlabelsGroup.selectAll("text")
     .on("click", function(){
-
       var value = d3.select(this).attr("value");
       if (value !== chosenXAxis){
         chosenXAxis = value;
@@ -269,46 +239,22 @@ d3.csv("./assets/data/data.csv").then(function(censusData) {
           case "poverty":
             xLabel = "Poverty";
             xLabelUnit = "%"
-            incomeLabel
-              .classed("inactive",true)
-              .classed("active", false)
-            ageLabel
-              .classed("inactive",true)
-              .classed("active", false)
-            povertyLabel
-              .classed("inactive",false)
-              .classed("active", true)
+            toogleLables(povertyLabel, incomeLabel, ageLabel)
             break;
           case "age":
             xLabel = "Age";
             xLabelUnit = ""
-            incomeLabel
-              .classed("inactive",true)
-              .classed("active", false)
-            ageLabel
-              .classed("inactive",false)
-              .classed("active", true)
-            povertyLabel
-              .classed("inactive",true)
-              .classed("active", false)
+            toogleLables(ageLabel, povertyLabel, incomeLabel)
             break;
           case "income":
             xLabel = "Income";
             xLabelUnit = ""
-            incomeLabel
-              .classed("inactive",false)
-              .classed("active", true)
-            ageLabel
-              .classed("inactive",true)
-              .classed("active", false)
-            povertyLabel
-              .classed("inactive",true)
-              .classed("active", false)
+            toogleLables(incomeLabel, ageLabel, povertyLabel)
             break;
         }
         xLinearScale = xScale(censusData, chosenXAxis);
-        circlesGroup = renderXCircles(circlesGroup, xLinearScale, chosenXAxis);
-        stateLabelsGroup = renderXlables(stateLabelsGroup,xLinearScale, chosenXAxis);
+        circlesGroup = renderCircles(circlesGroup, xLinearScale, chosenXAxis, yLinearScale, chosenYAxis);
+        stateLabelsGroup = renderlables(stateLabelsGroup,xLinearScale, chosenXAxis,yLinearScale, chosenYAxis);
         xAxis = renderAxes(xLinearScale, xAxis);
       }
     })
@@ -321,52 +267,25 @@ d3.csv("./assets/data/data.csv").then(function(censusData) {
           case "obesity":
             yLabel = "Obesity";
             yLabelUnit = "%"
-            obesityLabel
-              .classed("inactive",false)
-              .classed("active", true)
-            smokesLabel
-              .classed("inactive",true)
-              .classed("active", false)
-            healthLabel
-              .classed("inactive",true)
-              .classed("active", false)
+            toogleLables(obesityLabel, smokesLabel, healthLabel)
             break;
           case "smokes":
             yLabel = "Smokes";
             yLabelUnit = "%"
-            obesityLabel
-              .classed("inactive",true)
-              .classed("active", false)
-            smokesLabel
-              .classed("inactive",false)
-              .classed("active", true)
-            healthLabel
-              .classed("inactive",true)
-              .classed("active", false)
+            toogleLables(smokesLabel, obesityLabel, healthLabel)
             break;
           case "healthcare":
             yLabel = "Healthcare"
             yLabelUnit = "%"
-            obesityLabel
-            .classed("inactive",true)
-            .classed("active", false)
-          smokesLabel
-            .classed("inactive",true)
-            .classed("active", false)
-          healthLabel
-            .classed("inactive",false)
-            .classed("active", true)
+            toogleLables( healthLabel, smokesLabel, obesityLabel)
           break;
         };
         yLinearScale = yScale(censusData, chosenYAxis);
         yAxis = renderyAxes(yLinearScale, yAxis);
-        circlesGroup = renderYCircles(circlesGroup, yLinearScale, chosenYAxis);
-        stateLabelsGroup = renderYlables(stateLabelsGroup,yLinearScale, chosenYAxis)
+        circlesGroup = renderCircles(circlesGroup, xLinearScale, chosenXAxis, yLinearScale, chosenYAxis);
+        stateLabelsGroup = renderlables(stateLabelsGroup,xLinearScale, chosenXAxis,yLinearScale, chosenYAxis);
       }
     })
   }).catch(function(error) {
     console.log(error);
 });
-
-
-  
